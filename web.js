@@ -1,103 +1,71 @@
 const express = require("express");
 const nodeserver = express();
 const path = require("path");
-const port = 8003;
+const port = 8014;
 
-const mysql = require("mysql")
-const dbdata = require("./dbdata/dbcontact.json")
+const mysql = require("mysql");
+const dbdata = require("./dbdata/dbcontact.json");
 
-// 라우터 끌고오는 방법
-const apiRouter = require("./server/api/api");
-const datain = require("./newData/routers/datain");
-const navi = require("./server/navi")
+nodeserver.use(express.json()); // Add this middleware for parsing JSON requests
 
-nodeserver.use(express.static(path.join(__dirname, "./selfintroducepage/build")))
+nodeserver.use(express.static(path.join(__dirname, './selfintroducepage/build')))
 
-nodeserver.get("/", (req, res) => {
-  res.send(path.join(__dirname, "./selfintroducepage/build/index.html"));
+nodeserver.get('/',(req, res)=>{
+  res.sendFile(path.join(__dirname,'./selfintroducepage/build/index.html'))
 })
-
-nodeserver.use("/api", apiRouter);
-nodeserver.use("/data", datain);
-nodeserver.use("/navi", navi);
 
 const sqlconnection = mysql.createPool(dbdata);
 
-
-nodeserver.post("/title/:content", (req, res) => {
-  const content = req.params.content;
-  const querySwitch = selectQuery(content);
+nodeserver.get("/:dbtable", (req, res) => {
+  const { dbtable } = req.params;
 
   sqlconnection.getConnection((err, connection) => {
-    if (err) throw console.log(`DB접속정보가 다릅니다. + ${err}`)
-    connection.query(querySwitch, (error, result) => {
-      if (error) throw console.log(`쿼리문을 확인하여주십시오. + ${error}`)
-      res.send(result)
+    if (err) throw console.log(`DB connection error: ${err}`);
+    
+    connection.query(`SELECT * FROM ${dbtable}`, (error, result) => {
+      if (error) throw console.log(`Query execution error: ${error}`);
+      
+      res.send(result);
       connection.release();
-    })
-  })
-})
+    });
+  });
+});
 
-
-nodeserver.post("/title/:content/:pk", (req, res) => {
-  const content = req.params.content;
-  const pk = req.params.pk;
-
-  const querySwitch = selectQuery(content, pk);
+nodeserver.get("/:dbtable/:id", (req, res) => {
+  const { dbtable, id } = req.params;
 
   sqlconnection.getConnection((err, connection) => {
-    if (err) throw console.log(`DB접속정보가 다릅니다. + ${err}`)
-    connection.query(querySwitch, (error, result) => {
-      if (error) throw console.log(`쿼리문을 확인하여주십시오. + ${error}`)
-      res.send(result)
+    if (err) throw console.log(`DB connection error: ${err}`);
+    
+    connection.query(`SELECT * FROM ${dbtable} WHERE id=${id}`, (error, result) => {
+      if (error) throw console.log(`Query execution error: ${error}`);
+      
+      res.send(result);
       connection.release();
-    })
-  })
-})
+    });
+  });
+});
 
-
-
-nodeserver.post("/title/:content/:pk/:w", (req, res) => {
-  const content = req.params.content;
-  const pk = req.params.pk;
-  const w = req.params.w;
-
-  const querySwitch = selectQuery(content, pk, w);
+nodeserver.post("/:dbtable/0/write", (req, res) => {
+  const { dbtable } = req.params;
+  const { firp, secp } = req.body;
 
   sqlconnection.getConnection((err, connection) => {
-    if (err) throw console.log(`DB접속정보가 다릅니다. + ${err}`)
-    connection.query(querySwitch, (error, result) => {
-      if (error) throw console.log(`쿼리문을 확인하여주십시오. + ${error}`)
-      res.send(result)
+    if (err) throw console.log(`DB connection error: ${err}`);
+    
+    connection.query(`INSERT INTO ${dbtable} (firp, secp) VALUES (?, ?)`, [firp, secp], (error, result) => {
+      if (error) throw console.log(`Query execution error: ${error}`);
+      
+      res.send(result);
       connection.release();
-    })
-  })
+    });
+  });
+});
+
+nodeserver.use((req, res)=>{
+  res.status(404).sendFile(path.join(__dirname, './www/nopage.html'))
 })
 
-function selectQuery(content, ...args) {
-  const w = args[0];
-  const pk = args.length > 1 ? args[1] : null;
-
-  switch (w) {
-    case 's':
-      return pk === null ? `SELECT * FROM ${content}` : `SELECT * FROM ${content} WHERE id=${pk};`;
-    case 'i':
-      return `INSERT INTO ${content} (firp, secp) VALUES ('힘들었던 점2', '해결점 2');`;
-    case 'u':
-      return `UPDATE ${content} SET secp='해결점 1' WHERE id=${pk};`;
-    // case 'd':
-    //   // DELETE 쿼리에서는 pk를 사용합니다.
-    //   if (pk === null) return null; // pk가 필요한 경우에 pk가 없으면 null을 반환
-    //   return `DELETE FROM ${content} WHERE id=${pk};`;
-    default:
-      return null;
-  }
-}
-
-nodeserver.use((req, res) => {
-  res.status(404).sendFile(path.join(__dirname, "./selfintroducepage/nopage.html"))
-})
-
-nodeserver.listen(8014, () => {
-  console.log("구동완료")
-})
+nodeserver.listen(port, () => {
+  console.log(`Server is running on port ${port}`);
+});
