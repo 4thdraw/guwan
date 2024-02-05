@@ -46,7 +46,7 @@ nodeserver.get("/:dbtable/:id", (req, res) => {
   });
 });
 
-nodeserver.post("/:dbtable/0/write", (req, res) => {
+nodeserver.post("/:dbtable/mode/write", (req, res) => {
   const { dbtable } = req.params;
   const { firp, secp } = req.body;
 
